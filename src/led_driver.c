@@ -130,6 +130,15 @@ static void deinit_dma(LedPin pin) {
 bool led_driver_init(
     LedDriver *driver, LedPin pin, LedType type, LedColorOrder color_order, uint8_t led_nr
 ) {
+
+    // we want to still run the led module when EXTERNAL is set
+    if (type == LED_TYPE_EXTERNAL) {
+        driver->bitbuffer = NULL;
+        driver->bitbuffer_length = 0;
+
+        return true;
+    }
+    
     if (type != LED_TYPE_RGB && type != LED_TYPE_RGBW) {
         driver->bitbuffer = NULL;
         driver->bitbuffer_length = 0;

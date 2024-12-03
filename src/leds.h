@@ -94,6 +94,9 @@ typedef struct {
     uint32_t *led_data;
     uint8_t led_count;
     LedDriver led_driver;
+
+    uint8_t *led_comms_buffer;
+    uint8_t led_comms_buffer_size;
 } Leds;
 
 bool leds_init(Leds *leds, CfgHwLeds *hw_cfg, const CfgLeds *cfg, FootpadSensorState fs_state);

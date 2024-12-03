@@ -1652,6 +1652,8 @@ enum {
     // commands above 200 are unstable and can change protocol at any time
     COMMAND_GET_RTDATA_2 = 201,
     COMMAND_LIGHTS_CONTROL = 202,
+    COMMAND_GET_LEDS = 203,
+
 } Commands;
 
 static void send_realtime_data(data *d) {
@@ -2440,6 +2442,52 @@ static void lights_control_response(const CfgLeds *leds) {
     SEND_APP_DATA(buffer, bufsize, ind);
 }
 
+static void send_led_data(Leds *leds) {
+    // dont output unless we have an led module running
+    if (!leds->led_data) return;
+
+    // if we dont have a comms buffer lets create it (first run)
+    if (!leds->led_comms_buffer) {
+        // header (2 bytes) + led_count (uint8) + ... (2+1 bytes)
+        // front_start (uint8) + rear_start (uint8) + status_start (uint8) +  ...(3 bytes)
+        // front_length (uint8) + rear_length (uint8) + status_length (uint8)+  ...(3 bytes)
+        // led_data (uint32*count = 4*count)
+        leds->led_comms_buffer_size = 2 + 1 + 3 + 3 + (leds->led_count)*sizeof(uint32_t);
+
+        leds->led_comms_buffer = VESC_IF->malloc(leds->led_comms_buffer_size);
+        if (!leds->led_comms_buffer) {
+            log_error("Failed to allocate memory for LED comms buffer");
+            return;
+        }
+
+        int32_t ind = 0;
+
+        // header (2 bytes) + led_count (uint8) + ... (2+1 bytes)
+        leds->led_comms_buffer[ind++] = 101;  // Package ID
+        leds->led_comms_buffer[ind++] = COMMAND_GET_LEDS;
+        leds->led_comms_buffer[ind++] = leds->led_count;
+
+        // status_start (uint8) + front_start (uint8) + rear_start (uint8)  +  ...(3 bytes)
+        leds->led_comms_buffer[ind++] = leds->status_strip.start;
+        leds->led_comms_buffer[ind++] = leds->front_strip.start;
+        leds->led_comms_buffer[ind++] = leds->rear_strip.start;
+
+        // status_length (uint8) + front_length (uint8) + rear_length (uint8) +  ...(3 bytes)
+        leds->led_comms_buffer[ind++] = leds->status_strip.length;
+        leds->led_comms_buffer[ind++] = leds->front_strip.length;
+        leds->led_comms_buffer[ind++] = leds->rear_strip.length;
+    };
+
+    // data starts at index 9, first 9 bytes are header
+    int32_t ind = 9;
+
+    for (uint8_t i=0; i<leds->led_count; i++) {
+        buffer_append_uint32(leds->led_comms_buffer, leds->led_data[i], &ind);
+    }
+
+    SEND_APP_DATA(leds->led_comms_buffer, leds->led_comms_buffer_size, ind);
+}
+
 // Handler for incoming app commands
 static void on_command_received(unsigned char *buffer, unsigned int len) {
     data *d = (data *) ARG;
@@ -2586,6 +2634,11 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
     case COMMAND_LIGHTS_CONTROL: {
         lights_control_request(&d->float_conf.leds, &buffer[2], len - 2, &d->lcm);
         lights_control_response(&d->float_conf.leds);
+        return;
+    }
+    case COMMAND_GET_LEDS: {
+        // locking the led data structure so we don't have a race condition
+        send_led_data(&d->leds);
         return;
     }
     default: {

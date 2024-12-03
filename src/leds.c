@@ -776,6 +776,23 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
     if (leds->status_idle_blend > 0.0f) {
         status_brightness = fminf(status_brightness, leds->cfg->status_idle.brightness);
     }
+
+    // fade status brightness based on current rpm to off once moving
+    // not when running in flywheel mode, low battery, or duty cycle
+    if (leds->state.state == STATE_RUNNING && leds->state.mode != MODE_FLYWHEEL) {
+        float erpm = fabsf(VESC_IF->mc_get_rpm());
+        float duty = fminf(fabsf(VESC_IF->mc_get_duty_cycle_now() * 10.0f / 9.0f), 1.0f);
+        float battery = VESC_IF->mc_get_battery_level(NULL);
+
+        if (
+            erpm > 250 && // moving - TODO: configurable
+            battery > leds->cfg->status.red_bar_percentage && // not low battery
+            duty < leds->duty_threshold // not high duty cycle
+        ) {
+            // fade out over span of 250-1000 erpm
+            status_brightness = status_brightness * (1.0f - fminf((erpm - 250) / 750.0f, 1.0f));
+        }
+    }
     rate_limitf(&leds->status_strip.brightness, status_brightness, BR_RATE);
 
     // front brightness
@@ -1010,4 +1027,9 @@ void leds_destroy(Leds *leds) {
         leds->led_data = NULL;
     }
     leds->led_count = 0;
+
+    if (leds->led_comms_buffer) {
+        VESC_IF->free(leds->led_comms_buffer);
+        leds->led_comms_buffer = NULL;
+    }
 }
