@@ -406,7 +406,7 @@ static void status_animate(
     if (idle_blend < 1.0f) {
         bool reverse = strip == &leds->front_strip;
         if (leds->status_duty_blend < 1.0f) {
-            float battery = VESC_IF->mc_get_battery_level(NULL);
+            float battery = corrected_battery_percentage();
             anim_progress_bar(
                 leds, strip, battery, BATTERY_COLOR, false, reverse, fminf(blend, 1.0f - idle_blend)
             );
@@ -782,7 +782,7 @@ void leds_update(Leds *leds, const State *state, FootpadSensorState fs_state) {
     if (leds->state.state == STATE_RUNNING && leds->state.mode != MODE_FLYWHEEL) {
         float erpm = fabsf(VESC_IF->mc_get_rpm());
         float duty = fminf(fabsf(VESC_IF->mc_get_duty_cycle_now() * 10.0f / 9.0f), 1.0f);
-        float battery = VESC_IF->mc_get_battery_level(NULL);
+        float battery = corrected_battery_percentage();
 
         if (
             erpm > 250 && // moving - TODO: configurable
