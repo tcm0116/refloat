@@ -2613,6 +2613,12 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
     }
     case COMMAND_LCM_LIGHT_CTRL: {
         lcm_light_ctrl_request(&d->lcm, &buffer[2], len - 2);
+        if (d->lcm.enabled) {
+            d->float_conf.leds.status.brightness_headlights_off = d->lcm.status_brightness / 100.0;
+            d->float_conf.leds.status.brightness_headlights_on = d->lcm.status_brightness / 100.0;
+            d->float_conf.leds.status_idle.brightness = d->lcm.status_brightness / 100.0;
+            d->float_conf.leds.front.brightness = d->lcm.brightness / 100.0;
+        }
         return;
     }
     case COMMAND_LCM_DEVICE_INFO: {
