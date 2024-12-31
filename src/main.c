@@ -2444,7 +2444,9 @@ static void lights_control_response(const CfgLeds *leds) {
 
 static void send_led_data(Leds *leds) {
     // dont output unless we have an led module running
-    if (!leds->led_data) return;
+    if (!leds->led_data) {
+        return;
+    }
 
     // if we dont have a comms buffer lets create it (first run)
     if (!leds->led_comms_buffer) {
@@ -2452,7 +2454,7 @@ static void send_led_data(Leds *leds) {
         // front_start (uint8) + rear_start (uint8) + status_start (uint8) +  ...(3 bytes)
         // front_length (uint8) + rear_length (uint8) + status_length (uint8)+  ...(3 bytes)
         // led_data (uint32*count = 4*count)
-        leds->led_comms_buffer_size = 2 + 1 + 3 + 3 + (leds->led_count)*sizeof(uint32_t);
+        leds->led_comms_buffer_size = 2 + 1 + 3 + 3 + (leds->led_count) * sizeof(uint32_t);
 
         leds->led_comms_buffer = VESC_IF->malloc(leds->led_comms_buffer_size);
         if (!leds->led_comms_buffer) {
@@ -2481,7 +2483,7 @@ static void send_led_data(Leds *leds) {
     // data starts at index 9, first 9 bytes are header
     int32_t ind = 9;
 
-    for (uint8_t i=0; i<leds->led_count; i++) {
+    for (uint8_t i = 0; i < leds->led_count; i++) {
         buffer_append_uint32(leds->led_comms_buffer, leds->led_data[i], &ind);
     }
 
